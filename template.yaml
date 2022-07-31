@@ -1,0 +1,40 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  openbanking-demo
+  
+  Demo Open Banking spec implementation
+
+Globals:
+  Function:
+    Timeout: 57
+    Handler: org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest
+    Runtime: java11
+    CodeUri: target/openbanking-demo-1.0.0-SNAPSHOT-aws.jar
+    MemorySize: 1024
+    Tracing: Active
+
+Resources:
+  OpenBankingDemoAPI:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: dev
+      Name: Open Banking Demo API
+
+  GetBranchesOBFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Environment:
+        Variables:
+          SPRING_CLOUD_FUNCTION_DEFINITION: getBranchesFunction
+      Events:
+        GetRequest:
+          Type: Api
+          Properties:
+            RestApiId: !Ref OpenBankingDemoAPI
+            Path: /branches
+            Method: get
+Outputs:
+  ApiEndpoint:
+    Description: "API Gateway endpoint URL for dev"
+    Value: !Sub "https://${OpenBankingDemoAPI}.execute-api.${AWS::Region}.amazonaws.com/dev/branches"

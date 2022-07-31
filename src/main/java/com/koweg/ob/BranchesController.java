@@ -15,11 +15,8 @@ public class BranchesController implements BranchesApi {
 
   private final BranchesRepository branchesRepository;
 
-  private final NativeWebRequest request;
-
   @Autowired
-  public BranchesController(NativeWebRequest request, BranchesRepository branchesRepository) {
-    this.request = request;
+  public BranchesController(BranchesRepository branchesRepository) {
     this.branchesRepository = branchesRepository;
   }
 
