@@ -11,4 +11,6 @@
 4. Schema definition with constraints for resources in API spec.
 5. API security definition
 6. Provision of a sandbox for sanity testing
+   - Provide an executable test collection using a tool like Postman
+   - Provide happy path and negative test case scenarios
 7. Publishing of API spec for discovearability - ideally a Portal or repository.
