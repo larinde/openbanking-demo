@@ -1,0 +1,156 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  openbanking-demo
+  
+  Demo Open Banking spec implementation
+
+Parameters:
+  AppName:
+    Type: String
+    Description: Application name
+  ClientDomains:
+    Type: CommaDelimitedList
+    Description: Array of domains allowed to use this UserPool
+  AdminEmail:
+    Type: String
+    Description: Email address for administrator
+  AddGroupsToScopes:
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'false'
+
+Conditions:
+  ScopeGroups:
+    !Equals [!Ref AddGroupsToScopes, 'true']
+
+Globals:
+  Function:
+    Timeout: 57
+    Handler: org.springframework.cloud.function.adapter.aws.FunctionInvoker::handleRequest
+    Runtime: java11
+    CodeUri: target/openbanking-demo-1.0.0-SNAPSHOT-aws.jar
+    MemorySize: 1024
+    Tracing: Active
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool 
+    Properties: 
+      UserPoolName: !Sub ${AppName}-UserPool 
+      Policies: 
+        PasswordPolicy: 
+          MinimumLength: 8
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes: 
+        - email
+      Schema: 
+        - AttributeDataType: String 
+          Name: email 
+          Required: false
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient 
+    Properties: 
+      UserPoolId: !Ref UserPool 
+      ClientName: !Sub ${AppName}-UserPoolClient 
+      GenerateSecret: false # set to false for web clients
+      SupportedIdentityProviders:
+        - COGNITO
+      CallbackURLs: !Ref ClientDomains
+      LogoutURLs: !Ref ClientDomains
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - code
+        - implicit #for testing with postman
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties: 
+      Domain: !Sub ${AppName}-${AWS::AccountId}
+      UserPoolId: !Ref UserPool
+
+  AdminUserGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties: 
+      GroupName: Admins
+      Description: Admin user group
+      Precedence: 0
+      UserPoolId: !Ref UserPool
+  
+  AdminUserGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: Admins
+      Description: Admin user group
+      UserPoolId: !Ref UserPool
+      Precedence: 0 # in cases of multiple group membership, the lowest takes precedence on logging in
+
+  AdminUser:
+    Type: AWS::Cognito::UserPoolUser
+    Properties:
+      Username: !Ref AdminEmail
+      DesiredDeliveryMediums: 
+        - EMAIL
+      ForceAliasCreation: true
+      UserAttributes: 
+        - Name: email
+          Value: !Ref AdminEmail
+      UserPoolId: !Ref UserPool
+
+  AddUserToGroup:
+    Type: AWS::Cognito::UserPoolUserToGroupAttachment
+    Properties: 
+      GroupName: !Ref AdminUserGroup
+      Username: !Ref AdminUser
+      UserPoolId: !Ref UserPool
+
+
+  OpenBankingDemoAPI:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: dev
+      Name: Open Banking Demo API
+      Cors: "'*'"
+          
+      
+
+  GetBranchesOBFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Environment:
+        Variables:
+          SPRING_CLOUD_FUNCTION_DEFINITION: getBranchesFunction
+      Events:
+        GetRequest:
+          Type: Api
+          Properties:
+            RestApiId: !Ref OpenBankingDemoAPI
+            Path: /branches
+            Method: get
+
+Outputs:
+  UserPoolId:
+    Description: "User pool ID"
+    Value: !Ref UserPool
+    Export:
+      Name: !Sub ${AppName}:UserPoolId
+
+  UserPoolClientId:
+    Description: "Application client ID"
+    Value: !Ref UserPoolClient
+
+  AuthUrl:
+    Description: "URL used for authentication"
+    Value: !Sub https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com
+
+  ApiEndpoint:
+    Description: "API Gateway endpoint URL for dev"
+    Value: !Sub "https://${OpenBankingDemoAPI}.execute-api.${AWS::Region}.amazonaws.com/dev/branches"
