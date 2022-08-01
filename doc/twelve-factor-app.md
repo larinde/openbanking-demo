@@ -63,7 +63,7 @@ https://12factor.net/
 7. port binding
     - in order to be self-contained, an application should not depend on external infrastructure for port binding and request handling
 8. concurrency
-    - scaling out by diversifying workload of processes
+    - scaling out by diversifying workloads that require multiple processes/worflows for completion.
     - similar to the microservice architecture paradigm
 9. decomposability
     - an application should be quick to start up, graceful to shut down and resilient to failure
